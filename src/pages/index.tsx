@@ -6,18 +6,24 @@ import { LiveBeatEvent } from '@/types/events';
 
 import { getEvents } from '@/lib/events';
 
+import { getPreviewImageById } from '@/lib/storage';
+
+import { useAuth } from '@/hooks/use-auth';
+
 import Layout from '@/components/Layout';
 import Container from '@/components/Container';
 import EventCard from '@/components/EventCard';
 
 function Home() {
+  const { session } = useAuth();
+
   const [events, setEvents] = useState<Array<LiveBeatEvent> | undefined>();
 
   useEffect(() => {
     (
       async function run() {
         const { events } = await getEvents();
-        setEvents(events);        
+        setEvents(events);
       } 
     )()
   }, [])
@@ -31,29 +37,33 @@ function Home() {
             <h1 className="text-lg font-bold uppercase text-slate-600 dark:text-slate-200">
               Upcoming Events
             </h1>
-            <p>
-              <Link href="/events/new">
-                <a className="inline-block rounded bg-slate-600 py-1.5 px-4 text-xs font-bold uppercase text-white hover:bg-slate-500 hover:text-white">
-                  Add Event
-                </a>
-              </Link>
-            </p>
+            {session && (
+              <p>
+                <Link href="/events/new">
+                  <a className="inline-block rounded bg-slate-600 py-1.5 px-4 text-xs font-bold uppercase text-white hover:bg-slate-500 hover:text-white">
+                    Add Event
+                  </a>
+                </Link>
+              </p>
+            )}
+
           </Container>
           
           <Container>
             <div className="grid gap-12 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
               {events.map((event) => {
+
                 return (
-                  <Link key={event.name} href="/event/1234">
+                  <Link key={event.$id} href={`/event/${event.$id}`}>
                     <a>
                       <EventCard
                         date={event.date}
-                        // image={{
-                        //   alt: '',
-                        //   height: event.imageHeight,
-                        //   url: event.imageUrl,
-                        //   width: event.imageWidth
-                        // }}
+                        image={{
+                          alt: '',
+                          height: event.imageHeight ?? 0,
+                          url: getPreviewImageById(event.imageFileId),
+                          width: event.imageWidth ?? 0
+                        }}
                         location={event.location}
                         name={event.name}
                       />

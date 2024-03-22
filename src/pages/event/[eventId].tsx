@@ -1,15 +1,46 @@
 import Layout from '@/components/Layout';
 import Container from '@/components/Container';
-// import Button from '@/components/Button';
+import Button from '@/components/Button';
+import { getEventById, deleteEventById } from '@/lib/events';
 
-import events from '@/data/events.json';
+import { useEffect, useState } from 'react';
 
-function Event() {
-  const event = events[0];
+import { LiveBeatEvent } from '@/types/events';
+
+import { getPreviewImageById } from '@/lib/storage';
+
+import { useAuth } from '@/hooks/use-auth';
+
+import useLocation from 'wouter/use-location';
+
+function Event({ params }: { params: { eventId: string } }) {
+  const { isAdmin } = useAuth();
+  
+  const [event, setEvents] = useState<LiveBeatEvent | undefined>();
+  
+  const imageUrl = event?.imageFileId && getPreviewImageById(event.imageFileId);
+
+  const [,navigate] = useLocation();
+
   const image = {
-    url: events[0].imageUrl,
-    alt: ''
+    url: imageUrl,
+    alt: '',
+    height: event?.imageHeight,
+    width: event?.imageWidth
   };
+
+  useEffect(() => {
+    (async function run() {
+      const { event } = await getEventById(params.eventId);
+      setEvents(event);
+    })();
+  }, [params.eventId])
+
+  async function handleOnDeleteEvent() {
+    if (!event?.$id) return;
+    await deleteEventById(event.$id);
+    navigate("/");
+  }
 
   return (
     <Layout>
@@ -18,8 +49,8 @@ function Event() {
           {image?.url && (
             <img
               className="block rounded"
-              width={800}
-              height={450}
+              width={image.width}
+              height={image.height}
               src={image.url}
               alt={image.alt}
             />
@@ -38,9 +69,12 @@ function Event() {
               <p className="text-lg font-medium text-neutral-600 dark:text-neutral-200">
                 <strong>Location:</strong> { event?.location }
               </p>
-              {/* <p className="mt-6">
-                <Button color="red">Delete Event</Button>
-              </p> */}
+              {isAdmin && (
+                <p className="mt-6">
+                  <Button color="red" onClick={handleOnDeleteEvent}>Delete Event</Button>
+                </p>
+              )}
+
             </>
           )}
         </div>

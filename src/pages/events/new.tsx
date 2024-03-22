@@ -1,5 +1,13 @@
 import { useState } from 'react';
 
+import { createtEvent } from '@/lib/events';
+
+import { uploadFile } from '@/lib/storage';
+
+import { AppwriteException } from 'appwrite';
+
+import useLocation from 'wouter/use-location';
+
 import Layout from '@/components/Layout';
 import Container from '@/components/Container';
 import FormRow from '@/components/FormRow';
@@ -9,9 +17,38 @@ import InputDate from '@/components/InputDate';
 import InputFile from '@/components/InputFile';
 import Button from '@/components/Button';
 
+interface LiveBeatImage {
+  height: number;
+  file: File;
+  width : number;
+}
 
 function EventNew() {
-  const [error] = useState<string>();
+  const [error, setError] = useState<string>();
+
+  const [, navigate] = useLocation();
+
+  const [image, setImage] = useState<LiveBeatImage>();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  function handleOnChange(e: React.FormEvent<HTMLInputElement>) {
+    const target = e.target as HTMLInputElement & {
+      files: FileList;
+    }
+
+    const img = new Image();
+
+    img.onload = function() {
+      setImage({
+        height: img.height,
+        file: target.files[0],
+        width: img.width,
+      })
+    }
+    
+    img.src = URL.createObjectURL(target.files[0]);
+  }
 
   /**
    * handleOnSubmit
@@ -19,6 +56,50 @@ function EventNew() {
 
   async function handleOnSubmit(e: React.SyntheticEvent) {
     e.preventDefault();
+
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+      const target = e.target as typeof e.target & {
+        name: { value: string },
+        location: { value: string },
+        date: { value: string }
+      }
+  
+      let file;
+      if (image?.file) {
+        file = await uploadFile(image.file);
+      }
+      
+      const result = await createtEvent({
+        name: target.name.value,
+        location: target.location.value,
+        date: new Date(target.date.value).toISOString(),
+        imageHeight: image?.height,
+        imageFileId: file?.$id,
+        imageWidth: image?.width
+      })
+      
+      setIsSubmitting(false);
+      navigate(`/event/${result.event.$id}`);
+      
+    } catch (error: unknown) {
+   
+
+      if (error instanceof AppwriteException) {
+        console.log("error:", error.response.type);
+        if (error.response.type === "user_unauthorized") {
+          setError("You must login to submit a new event");
+        }
+      }
+      
+      console.log("error:", error);
+
+      
+    }
+    
+    
   }
 
   return (
@@ -58,14 +139,14 @@ function EventNew() {
 
           <FormRow className="mb-6">
             <FormLabel htmlFor="image">File</FormLabel>
-            <InputFile id="image" name="image" />
+            <InputFile id="image" name="image" onChange={handleOnChange} />
             <p className="text-sm mt-2">Accepted File Types: jpg, png</p>
           </FormRow>
 
           <Button>Submit</Button>
 
           {error && (
-            <p className="bg-red-50 p-4 mt-6 rounded">{ error }</p>
+            <p className="bg-red-50 dark:bg-red-900 p-4 mt-6 rounded">{ error }</p>
           )}
         </form>
 

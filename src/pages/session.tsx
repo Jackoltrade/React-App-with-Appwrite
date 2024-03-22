@@ -1,6 +1,41 @@
 import Container from '@/components/Container';
+import { useEffect } from 'react';
+
+import { useAuth } from '@/hooks/use-auth';
+
+import { AppwriteException } from 'appwrite';
+
+import useLocation from 'wouter/use-location';
 
 function Session() {
+  const { verifySession } = useAuth();
+
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get("userId");
+    const secret = params.get("secret");
+
+    if (typeof userId !== "string" || typeof secret !== "string" ) {
+      navigate("/login");
+      return;
+    }
+
+    (async function run() {
+      try {
+        await verifySession({ userId, secret });
+        navigate("/");
+        
+      } catch (error) {
+
+        if (error instanceof AppwriteException) {
+          navigate(`/login?error=${error.response.type}`);
+        }
+      }
+    })();
+  }, []);
+
   return (
     <Container className="h-screen flex items-center justify-center text-center">
       <p>Logging you in...</p>
